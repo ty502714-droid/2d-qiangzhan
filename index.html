@@ -34,7 +34,7 @@ const rand = (a,b)=>a+Math.random()*(b-a);
 const dist = (x1,y1,x2,y2)=>Math.hypot(x1-x2,y1-y2);
 
 // ---------------- 状态 ----------------
-let state = 'title';           // title | playing | over | paused | editor
+let state = 'splash';          // splash | title | playing | over | paused | editor
 let mode = 'pvp';              // pvp | pve | boss | time
 let selMap = 'ruins';
 let playerTeam = 'blue';      // 人机模式下玩家所选队伍（pvp 时双方皆人）
@@ -60,6 +60,7 @@ let touchUsed = false;       // 是否使用过触屏（用于显示虚拟按键
 
 // 更新公告（主界面 / 标题栏左侧）
 const CHANGELOG = [
+  '4.16 更新：新增「小绵羊工作室」开场画面——打开游戏先显示 小绵羊工作室 / 作者：杨卓轩，点击或按任意键进入标题',
   '4.15 更新：🐕小狗助手（捡道具，会咬敌人25秒）· 🌀传送门（两张图各2个圈圈踩进去瞬移）· 💪巨人药水（变大变肉10秒）· ④限时挑战模式（60秒内尽量多杀AI，冲排行榜！）',
   '4.14.1 更新：战场物资生成上限——地上最多同时 5把武器、3个炸弹、4个道具、3个奖励箱，捡掉才会刷新新的，不再堆成山',
   '4.14 更新：二层平台加大；上楼改成按键操作——碰到平台/楼梯后 蓝队按F、红队按/（触屏点「上下」按钮）切换楼层；走下平台边缘自动掉回1层；AI 也会用楼梯上下楼',
@@ -195,6 +196,7 @@ let clPanel = { x:20, y:450, w:300, collapsed:false, drag:null }; // 标题公�
 function once(code){ if(pressed[code]){ pressed[code]=false; return true; } return false; }
 window.addEventListener('keydown', e=>{
   if(document.activeElement===nameEl) return;
+  if(state==='splash'){ state='title'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } e.preventDefault(); return; }
   if(['Space','Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   if(!keys[e.code]) pressed[e.code]=true;
   keys[e.code]=true;
@@ -220,6 +222,7 @@ if(cv.addEventListener){
   cv.addEventListener('contextmenu', e=>e.preventDefault()); // 屏蔽长按弹出的右键菜单
   if(!hasPointer){
     cv.addEventListener('mousedown', e=>{
+      if(state==='splash'){ state='title'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } return; }
       if(state==='title'){ titlePointer(canvasPos(e),'down'); return; }
       if(state==='editor'){ const p=canvasPos(e); editorDrag=p; editorDragNow=p; }
     });
@@ -248,6 +251,7 @@ function onTouchEnd(id){ if(touch.joy && id===touch.joyId){ touch.joy=null; touc
 if(cv.addEventListener && hasPointer){
   cv.addEventListener('pointerdown', e=>{
     if(e.pointerType==='touch' && e.preventDefault) e.preventDefault(); // 阻止浏览器手势，保证可长按/多点
+    if(state==='splash'){ state='title'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } return; }
     if(state==='title'){ titlePointer(canvasPos(e),'down'); return; }
     if(state==='editor'){ const p=canvasPos(e); editorDrag=p; editorDragNow=p; return; }
     if(state==='playing'){ onTouchStart(canvasPos(e), e.pointerId); }
@@ -970,11 +974,24 @@ function titlePointer(p,type){
     clPanel.drag=null;
   }
 }
+function drawSplash(){
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#241a36'); g.addColorStop(1,'#0e0a18');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='center';
+  ctx.font='96px sans-serif'; ctx.fillText('🐑', W/2, H/2-130);
+  ctx.fillStyle='#ffd24a'; ctx.font='bold 54px sans-serif';
+  ctx.fillText('小绵羊工作室', W/2, H/2-20);
+  ctx.fillStyle='#e8eef5'; ctx.font='27px sans-serif';
+  ctx.fillText('作者：杨卓轩', W/2, H/2+34);
+  const a=0.45+0.45*Math.sin(Date.now()/400);
+  ctx.fillStyle='rgba(159,179,200,'+a.toFixed(2)+')'; ctx.font='19px sans-serif';
+  ctx.fillText('点击屏幕 或 按任意键 开始', W/2, H/2+120);
+}
 function drawTitle(){
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#16202e'); g.addColorStop(1,'#0c121b');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 60px sans-serif';
-  ctx.fillText('2D 枪战 4.15 版',W/2,100);
+  ctx.fillText('2D 枪战 4.16 版',W/2,100);
   ctx.font='16px sans-serif'; ctx.fillStyle='#9fb3c8';
   ctx.fillText('血量条 · 第二层 · 传送门 · 小狗助手 · 巨人药水 · 限时挑战 · 燃烧/冰冻手榴弹 · 道具 · 音效',W/2,136);
 
@@ -1139,6 +1156,7 @@ function drawPause(){
 // ---------------- 渲染分发 ----------------
 function render(){
   if(nameEl) nameEl.style.display = (state==='title')?'block':'none';
+  if(state==='splash'){ drawSplash(); return; }
   if(state==='title'){ drawTitle(); return; }
   if(state==='editor'){ drawEditor(); return; }
   if(state==='over'){ drawOver(); return; }
