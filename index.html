@@ -50,6 +50,8 @@ const SPAWN_LIMITS = { pickups:5, bombPickups:3, items:4, boxes:3 };
 let winner = null;
 let aiLevel = 'normal';        // easy | normal | hard
 let titleButtons = [];        // 标题界面按钮命中区（drawTitle 中填充）
+let pauseButtons = [];        // 暂停界面按钮命中区（drawPause 中填充）
+let overButtons = [];         // 结算界面按钮命中区（drawOver 中填充）
 let scores = [];             // 本地排行榜（localStorage）
 let matchStart = 0;          // 本局开始时间
 let playerName = '';         // 玩家名字（排行榜用，存 localStorage）
@@ -259,7 +261,8 @@ if(cv.addEventListener && hasPointer){
     if(e.pointerType==='touch' && e.preventDefault) e.preventDefault(); // 阻止浏览器手势，保证可长按/多点
     if(state==='splash'){ state='device'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } return; }
     if(state==='device'){ handleDeviceClick(canvasPos(e)); return; }
-    if(state==='paused'){ state='playing'; return; }
+    if(state==='paused'){ handlePauseClick(canvasPos(e)); return; }
+    if(state==='over'){ handleOverClick(canvasPos(e)); return; }
     if(state==='title'){ titlePointer(canvasPos(e),'down'); return; }
     if(state==='editor'){ const p=canvasPos(e); editorDrag=p; editorDragNow=p; return; }
     if(state==='playing'){ onTouchStart(canvasPos(e), e.pointerId); }
@@ -946,6 +949,14 @@ function drawBtn(id,label,x,y,w,h,active){
   ctx.fillStyle = active ? '#1a1a1a' : '#e8eef5'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
   ctx.fillText(label, x+w/2, y+h/2+1); ctx.textBaseline='alphabetic';
 }
+function drawMenuBtn(arr,id,label,x,y,w,h,active){
+  arr.push({id,x,y,w,h});
+  ctx.fillStyle = active ? 'rgba(255,210,74,0.92)' : 'rgba(255,255,255,0.12)';
+  ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle = active ? '#ffd24a' : 'rgba(255,255,255,0.30)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+  ctx.fillStyle = active ? '#1a1a1a' : '#e8eef5'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(label, x+w/2, y+h/2+1); ctx.textBaseline='alphabetic';
+}
 function handleTitleClick(p){
   for(const b of titleButtons){
     if(p.x>=b.x && p.x<=b.x+b.w && p.y>=b.y && p.y<=b.y+b.h){
@@ -964,6 +975,24 @@ function handleTitleClick(p){
       else if(b.id==='team_blue') playerTeam='blue';
       else if(b.id==='team_red') playerTeam='red';
       else if(b.id==='start') startGame();
+      return;
+    }
+  }
+}
+function handlePauseClick(p){
+  for(const b of pauseButtons){
+    if(p.x>=b.x && p.x<=b.x+b.w && p.y>=b.y && p.y<=b.y+b.h){
+      if(b.id==='resume') state='playing';
+      else if(b.id==='exit') state='title';
+      return;
+    }
+  }
+  state='playing'; // 点空白处也可继续
+}
+function handleOverClick(p){
+  for(const b of overButtons){
+    if(p.x>=b.x && p.x<=b.x+b.w && p.y>=b.y && p.y<=b.y+b.h){
+      if(b.id==='back') state='title';
       return;
     }
   }
@@ -1189,7 +1218,8 @@ function drawOver(){
   ctx.font='15px sans-serif';
   for(let i=0;i<scores.length && i<3;i++){ const s=scores[i]; ctx.fillStyle=i===0?'#ffd24a':'#bcd'; ctx.fillText((i+1)+'. '+(s.team==='blue'?'🔵':'🔴')+(s.win?'胜':'负')+'  '+s.score+'分（'+s.kills+'杀'+s.deaths+'死 · '+(s.mode==='pve'?'人机':s.mode==='time'?'限时':'双人')+'）',W/2,H/2+30+i*22); }
   ctx.fillStyle='#9fb3c8'; ctx.font='20px sans-serif';
-  ctx.fillText('按 空格 回到标题',W/2,H/2+130);
+  overButtons=[];
+  drawMenuBtn(overButtons,'back','🏠 回到标题',W/2-140,H/2+128,280,52,false);
 }
 
 // ---------------- 绘制：暂停菜单 ----------------
@@ -1203,7 +1233,11 @@ function drawPause(){
   ctx.fillText('背景音乐：'+(Sound.musicOn?'开 🎵':'关 🔇')+'   （按 M 切换）',W/2,282);
   ctx.fillText('AI 难度：'+({easy:'简单',normal:'普通',hard:'困难'}[aiLevel])+'   （按 B 切换）',W/2,324);
   ctx.fillStyle='#9fb3c8'; ctx.font='16px sans-serif';
-  ctx.fillText(isMobile()?'点击屏幕 继续  ｜  Tab 回到标题':'Esc / 空格 继续  ｜  Tab 回到标题',W/2,400);
+  if(isMobile()) ctx.fillText('点按钮操作（也可直接点空白处继续）',W/2,372);
+  else ctx.fillText('点按钮操作（也可 Esc / 空格 继续 ·  M 音乐 ·  B 难度 ·  ←→ 音量）',W/2,372);
+  pauseButtons=[];
+  drawMenuBtn(pauseButtons,'resume','▶ 继续游戏',W/2-210,400,200,52,false);
+  drawMenuBtn(pauseButtons,'exit','🚪 退出游戏',W/2+10,400,200,52,false);
 }
 
 // ---------------- 渲染分发 ----------------
