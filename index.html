@@ -34,7 +34,7 @@ const rand = (a,b)=>a+Math.random()*(b-a);
 const dist = (x1,y1,x2,y2)=>Math.hypot(x1-x2,y1-y2);
 
 // ---------------- 状态 ----------------
-let state = 'splash';          // splash | title | playing | over | paused | editor
+let state = 'splash';          // splash | device | title | playing | over | paused | editor
 let mode = 'pvp';              // pvp | pve | boss | time
 let selMap = 'ruins';
 let playerTeam = 'blue';      // 人机模式下玩家所选队伍（pvp 时双方皆人）
@@ -57,9 +57,13 @@ let banner = {text:'', t:0}; // 连杀横幅
 let touchPlayer = null;      // 触屏控制的对象（人类玩家）
 const touch = { joy:null, joyId:null, shoot:false, shootId:null }; // 触屏状态（joyId/shootId 区分多指）
 let touchUsed = false;       // 是否使用过触屏（用于显示虚拟按键）
+let deviceType = 'pc';       // 设备类型：'pc' 电脑(键盘鼠标) | 'mobile' 手机/平板(全部改为按钮)
+let deviceButtons = [];      // 设备选择界面按钮命中区
+function isMobile(){ return deviceType==='mobile'; }
 
 // 更新公告（主界面 / 标题栏左侧）
 const CHANGELOG = [
+  '4.17 更新：新增「设备选择」界面——小绵羊工作室之后会问你用什么玩，选「手机/平板」则所有按键变成屏幕按钮（移动摇杆、射击/手雷/切换/炸弹/上下 + 右上角暂停键），选「电脑」保持键盘鼠标',
   '4.16 更新：新增「小绵羊工作室」开场画面——打开游戏先显示 小绵羊工作室 / 作者：杨卓轩，点击或按任意键进入标题',
   '4.15 更新：🐕小狗助手（捡道具，会咬敌人25秒）· 🌀传送门（两张图各2个圈圈踩进去瞬移）· 💪巨人药水（变大变肉10秒）· ④限时挑战模式（60秒内尽量多杀AI，冲排行榜！）',
   '4.14.1 更新：战场物资生成上限——地上最多同时 5把武器、3个炸弹、4个道具、3个奖励箱，捡掉才会刷新新的，不再堆成山',
@@ -196,7 +200,7 @@ let clPanel = { x:20, y:450, w:300, collapsed:false, drag:null }; // 标题公�
 function once(code){ if(pressed[code]){ pressed[code]=false; return true; } return false; }
 window.addEventListener('keydown', e=>{
   if(document.activeElement===nameEl) return;
-  if(state==='splash'){ state='title'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } e.preventDefault(); return; }
+  if(state==='splash'){ state='device'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } e.preventDefault(); return; }
   if(['Space','Tab','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
   if(!keys[e.code]) pressed[e.code]=true;
   keys[e.code]=true;
@@ -222,7 +226,8 @@ if(cv.addEventListener){
   cv.addEventListener('contextmenu', e=>e.preventDefault()); // 屏蔽长按弹出的右键菜单
   if(!hasPointer){
     cv.addEventListener('mousedown', e=>{
-      if(state==='splash'){ state='title'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } return; }
+      if(state==='splash'){ state='device'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } return; }
+      if(state==='device'){ handleDeviceClick(canvasPos(e)); return; }
       if(state==='title'){ titlePointer(canvasPos(e),'down'); return; }
       if(state==='editor'){ const p=canvasPos(e); editorDrag=p; editorDragNow=p; }
     });
@@ -239,19 +244,22 @@ const TB = {
   bomb: {x:W-250,y:H-240,w:80,h:80},
   stair:{x:W-470,y:H-110,w:80,h:80},
 };
+const pauseBtn = { x:W-58, y:14, w:44, h:44 }; // 手机端右上角暂停按钮
 function inRect(p,r){ return p.x>=r.x && p.x<=r.x+r.w && p.y>=r.y && p.y<=r.y+r.h; }
 function touchAct(act){ if(!touchPlayer) return; if(act==='gren') touchPlayer.throwGrenade(); else if(act==='sw') touchPlayer.grenType=touchPlayer.grenType==='burn'?'freeze':'burn'; else if(act==='bomb') touchPlayer.placeBomb(); else if(act==='stair') touchPlayer.toggleFloor(); }
 function onTouchStart(p,id){
   touchUsed=true;
   if(p.x < W*0.5){ if(touch.joy==null){ touch.joy={bx:p.x,by:p.y,cx:p.x,cy:p.y}; touch.joyId=id; } }
-  else { if(inRect(p,TB.shoot)){ touch.shoot=true; touch.shootId=id; } else if(inRect(p,TB.gren)) touchAct('gren'); else if(inRect(p,TB.sw)) touchAct('sw'); else if(inRect(p,TB.bomb)) touchAct('bomb'); }
+  else { if(inRect(p,pauseBtn)){ state='paused'; return; } if(inRect(p,TB.shoot)){ touch.shoot=true; touch.shootId=id; } else if(inRect(p,TB.gren)) touchAct('gren'); else if(inRect(p,TB.sw)) touchAct('sw'); else if(inRect(p,TB.bomb)) touchAct('bomb'); else if(inRect(p,TB.stair)) touchAct('stair'); }
 }
 function onTouchMove(p,id){ if(touch.joy && id===touch.joyId){ touch.joy.cx=p.x; touch.joy.cy=p.y; } }
 function onTouchEnd(id){ if(touch.joy && id===touch.joyId){ touch.joy=null; touch.joyId=null; } if(touch.shoot && id===touch.shootId){ touch.shoot=false; touch.shootId=null; } }
 if(cv.addEventListener && hasPointer){
   cv.addEventListener('pointerdown', e=>{
     if(e.pointerType==='touch' && e.preventDefault) e.preventDefault(); // 阻止浏览器手势，保证可长按/多点
-    if(state==='splash'){ state='title'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } return; }
+    if(state==='splash'){ state='device'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } return; }
+    if(state==='device'){ handleDeviceClick(canvasPos(e)); return; }
+    if(state==='paused'){ state='playing'; return; }
     if(state==='title'){ titlePointer(canvasPos(e),'down'); return; }
     if(state==='editor'){ const p=canvasPos(e); editorDrag=p; editorDragNow=p; return; }
     if(state==='playing'){ onTouchStart(canvasPos(e), e.pointerId); }
@@ -275,7 +283,7 @@ if(cv.addEventListener && hasPointer){
 }
 function drawTBtn(r,label,active){ ctx.fillStyle=active?'rgba(255,210,74,0.5)':'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(r.x+r.w/2,r.y+r.h/2,r.w/2,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=2; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font='bold 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,r.x+r.w/2,r.y+r.h/2); ctx.textBaseline='alphabetic'; }
 function drawTouchControls(){
-  if(!touchUsed) return;
+  if(!touchUsed && !isMobile()) return;   // 手机端始终显示虚拟按键
   if(touch.joy){ ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(touch.joy.bx,touch.joy.by,50,0,Math.PI*2); ctx.stroke(); ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(touch.joy.cx,touch.joy.cy,26,0,Math.PI*2); ctx.fill(); }
   else { ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(W*0.25,H-150,50,0,Math.PI*2); ctx.stroke(); }
   drawTBtn(TB.shoot,'射击', touch.shoot);
@@ -578,9 +586,9 @@ class Player {
     if(this.carryBomb){ ctx.fillStyle='#000'; ctx.font='14px sans-serif'; ctx.textAlign='center'; ctx.fillText('💣',this.x,this.y-PR-18); }
     // 站在楼梯旁提示可上/下楼
     if(!this.isAI && this.alive && map.floor2 && this.canUseStair()){
-      ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(this.x-60,this.y-this.radius-40,120,18);
-      ctx.fillStyle='#ffd24a'; ctx.font='12px sans-serif'; ctx.textAlign='center';
-      ctx.fillText(this.team==='blue'?'此处按 F 上/下楼':'此处按 / 上/下楼',this.x,this.y-this.radius-27);
+      ctx.fillStyle='rgba(0,0,0,0.55)'; ctx.fillRect(this.x-75,this.y-this.radius-40,150,18);
+      ctx.fillStyle='#ffd24a'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('楼梯旁：'+(isMobile()?'点「上下」上/下楼':(this.team==='blue'?'按 F 上/下楼':'按 / 上/下楼')),this.x,this.y-this.radius-27);
       ctx.textAlign='left';
     }
     ctx.globalAlpha=1;
@@ -913,7 +921,18 @@ function drawUI(){
   drawStatus(players[0],24,H-90,'left');
   drawStatus(players[1],W-24,H-90,'right');
   ctx.textAlign='center'; ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.font='13px sans-serif';
-  ctx.fillText('蓝:WASD移动 J射击 Q手榴弹 R换类型 E放炸弹 F上/下楼 ｜ 红:方向键 K射击 N手榴弹 M换类型 L放炸弹 /上/下楼 ｜ Esc暂停',W/2,H-12);
+  if(isMobile()){
+    ctx.fillText('左半屏拖动 = 移动 ｜ 右侧按钮 = 射击/手雷/切换/炸弹/上下 ｜ 右上角 ⏸ 暂停',W/2,H-12);
+  } else {
+    ctx.fillText('蓝:WASD移动 J射击 Q手榴弹 R换类型 E放炸弹 F上/下楼 ｜ 红:方向键 K射击 N手榴弹 M换类型 L放炸弹 /上/下楼 ｜ Esc暂停',W/2,H-12);
+  }
+  // 手机端右上角暂停按钮
+  if(isMobile()){
+    ctx.fillStyle='rgba(255,255,255,0.18)'; ctx.fillRect(pauseBtn.x,pauseBtn.y,pauseBtn.w,pauseBtn.h);
+    ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=2; ctx.strokeRect(pauseBtn.x,pauseBtn.y,pauseBtn.w,pauseBtn.h);
+    ctx.fillStyle='#fff'; ctx.font='24px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('⏸',pauseBtn.x+pauseBtn.w/2,pauseBtn.y+pauseBtn.h/2+1); ctx.textBaseline='alphabetic';
+  }
   drawAnnouncements();
   if(banner.t>0){ ctx.globalAlpha=clamp(banner.t,0,1); ctx.textAlign='center'; ctx.fillStyle='#ffd24a'; ctx.font='bold 46px sans-serif'; ctx.fillText(banner.text,W/2,H/2-150); ctx.globalAlpha=1; }
 }
@@ -987,11 +1006,45 @@ function drawSplash(){
   ctx.fillStyle='rgba(159,179,200,'+a.toFixed(2)+')'; ctx.font='19px sans-serif';
   ctx.fillText('点击屏幕 或 按任意键 开始', W/2, H/2+120);
 }
+// ---------------- 设备选择界面 ----------------
+function drawDevBtn(id,label,x,y,w,h,active){
+  deviceButtons.push({id,x,y,w,h});
+  ctx.fillStyle = active ? 'rgba(255,210,74,0.92)' : 'rgba(255,255,255,0.12)';
+  ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle = active ? '#ffd24a' : 'rgba(255,255,255,0.30)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
+  ctx.fillStyle = active ? '#1a1a1a' : '#e8eef5'; ctx.font='bold 22px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(label, x+w/2, y+h/2+1); ctx.textBaseline='alphabetic';
+}
+function drawDevice(){
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#16202e'); g.addColorStop(1,'#0c121b');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  deviceButtons=[];
+  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 46px sans-serif';
+  ctx.fillText('你正在用什么玩？', W/2, 210);
+  ctx.font='20px sans-serif'; ctx.fillStyle='#9fb3c8';
+  ctx.fillText('选择设备，我们将为你安排合适的操作方式', W/2, 256);
+  drawDevBtn('dev_pc','💻 电脑', 360, 310, 240, 130, deviceType==='pc');
+  drawDevBtn('dev_mobile','📱 手机 / 平板', 680, 310, 240, 130, deviceType==='mobile');
+  ctx.fillStyle='#9fb3c8'; ctx.font='15px sans-serif';
+  ctx.fillText('电脑：键盘 + 鼠标，无需更改', W/2-120, 480);
+  ctx.fillText('手机/平板：所有按键变成屏幕按钮', W/2+120, 480);
+}
+function handleDeviceClick(p){
+  for(const b of deviceButtons){
+    if(p.x>=b.x && p.x<=b.x+b.w && p.y>=b.y && p.y<=b.y+b.h){
+      if(b.id==='dev_pc') deviceType='pc';
+      else if(b.id==='dev_mobile') deviceType='mobile';
+      state='title';
+      if(!Sound.ctx){ Sound.init(); Sound.resume(); }
+      return;
+    }
+  }
+}
 function drawTitle(){
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#16202e'); g.addColorStop(1,'#0c121b');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 60px sans-serif';
-  ctx.fillText('2D 枪战 4.16 版',W/2,100);
+  ctx.fillText('2D 枪战 4.17 版',W/2,100);
   ctx.font='16px sans-serif'; ctx.fillStyle='#9fb3c8';
   ctx.fillText('血量条 · 第二层 · 传送门 · 小狗助手 · 巨人药水 · 限时挑战 · 燃烧/冰冻手榴弹 · 道具 · 音效',W/2,136);
 
@@ -1150,13 +1203,14 @@ function drawPause(){
   ctx.fillText('背景音乐：'+(Sound.musicOn?'开 🎵':'关 🔇')+'   （按 M 切换）',W/2,282);
   ctx.fillText('AI 难度：'+({easy:'简单',normal:'普通',hard:'困难'}[aiLevel])+'   （按 B 切换）',W/2,324);
   ctx.fillStyle='#9fb3c8'; ctx.font='16px sans-serif';
-  ctx.fillText('Esc / 空格 继续  ｜  Tab 回到标题',W/2,400);
+  ctx.fillText(isMobile()?'点击屏幕 继续  ｜  Tab 回到标题':'Esc / 空格 继续  ｜  Tab 回到标题',W/2,400);
 }
 
 // ---------------- 渲染分发 ----------------
 function render(){
   if(nameEl) nameEl.style.display = (state==='title')?'block':'none';
   if(state==='splash'){ drawSplash(); return; }
+  if(state==='device'){ drawDevice(); return; }
   if(state==='title'){ drawTitle(); return; }
   if(state==='editor'){ drawEditor(); return; }
   if(state==='over'){ drawOver(); return; }
