@@ -52,6 +52,7 @@ let aiLevel = 'normal';        // easy | normal | hard
 let titleButtons = [];        // 标题界面按钮命中区（drawTitle 中填充）
 let pauseButtons = [];        // 暂停界面按钮命中区（drawPause 中填充）
 let overButtons = [];         // 结算界面按钮命中区（drawOver 中填充）
+let editorButtons = [];       // 地图编辑器按钮命中区（drawEditor 中填充）
 let scores = [];             // 本地排行榜（localStorage）
 let matchStart = 0;          // 本局开始时间
 let playerName = '';         // 玩家名字（排行榜用，存 localStorage）
@@ -65,6 +66,8 @@ function isMobile(){ return deviceType==='mobile'; }
 
 // 更新公告（主界面 / 标题栏左侧）
 const CHANGELOG = [
+  '4.19 更新：地图编辑器操作按钮化——底部新增「废墟/冰雪/工厂 底图」「清空」「保存并开玩」「返回标题」按钮（手机/鼠标都能点，键盘 1/2/3·C·S·Esc 仍可用）',
+  '4.18 更新：游戏「退出」改成按钮——暂停菜单新增「🚪 退出游戏」、结算页新增「🏠 回到标题」按钮（触屏也能退出，键盘 Esc/空格 仍可用）',
   '4.17 更新：新增「设备选择」界面——小绵羊工作室之后会问你用什么玩，选「手机/平板」则所有按键变成屏幕按钮（移动摇杆、射击/手雷/切换/炸弹/上下 + 右上角暂停键），选「电脑」保持键盘鼠标',
   '4.16 更新：新增「小绵羊工作室」开场画面——打开游戏先显示 小绵羊工作室 / 作者：杨卓轩，点击或按任意键进入标题',
   '4.15 更新：🐕小狗助手（捡道具，会咬敌人25秒）· 🌀传送门（两张图各2个圈圈踩进去瞬移）· 💪巨人药水（变大变肉10秒）· ④限时挑战模式（60秒内尽量多杀AI，冲排行榜！）',
@@ -231,7 +234,7 @@ if(cv.addEventListener){
       if(state==='splash'){ state='device'; if(!Sound.ctx){ Sound.init(); Sound.resume(); } return; }
       if(state==='device'){ handleDeviceClick(canvasPos(e)); return; }
       if(state==='title'){ titlePointer(canvasPos(e),'down'); return; }
-      if(state==='editor'){ const p=canvasPos(e); editorDrag=p; editorDragNow=p; }
+      if(state==='editor'){ const p=canvasPos(e); if(handleEditorClick(p)) return; editorDrag=p; editorDragNow=p; }
     });
     window.addEventListener('mousemove', e=>{ if(state==='title'){ titlePointer(canvasPos(e),'move'); return; } if(state!=='editor'||!editorDrag) return; editorDragNow=canvasPos(e); });
     window.addEventListener('mouseup', e=>{ if(state==='title'){ titlePointer(canvasPos(e),'up'); return; } if(state!=='editor'||!editorDrag) return; finishWall(editorDrag, canvasPos(e)); editorDrag=null; });
@@ -264,7 +267,7 @@ if(cv.addEventListener && hasPointer){
     if(state==='paused'){ handlePauseClick(canvasPos(e)); return; }
     if(state==='over'){ handleOverClick(canvasPos(e)); return; }
     if(state==='title'){ titlePointer(canvasPos(e),'down'); return; }
-    if(state==='editor'){ const p=canvasPos(e); editorDrag=p; editorDragNow=p; return; }
+    if(state==='editor'){ const p=canvasPos(e); if(handleEditorClick(p)) return; editorDrag=p; editorDragNow=p; return; }
     if(state==='playing'){ onTouchStart(canvasPos(e), e.pointerId); }
   }, {passive:false});
   cv.addEventListener('pointermove', e=>{
@@ -997,6 +1000,20 @@ function handleOverClick(p){
     }
   }
 }
+function handleEditorClick(p){
+  for(const b of editorButtons){
+    if(p.x>=b.x && p.x<=b.x+b.w && p.y>=b.y && p.y<=b.y+b.h){
+      if(b.id==='load_ruins') editorWalls=MAPS.ruins.walls.slice();
+      else if(b.id==='load_ice') editorWalls=MAPS.ice.walls.slice();
+      else if(b.id==='load_factory') editorWalls=MAPS.factory.walls.slice();
+      else if(b.id==='clear') editorWalls=[];
+      else if(b.id==='save') saveCustom();
+      else if(b.id==='back') state='title';
+      return true;
+    }
+  }
+  return false;
+}
 function titlePointer(p,type){
   if(type==='down'){
     // 最小化/展开按钮：标题栏最右侧 44×44 的热区（优先检测），支持面板贴边后按钮仍可点
@@ -1073,7 +1090,7 @@ function drawTitle(){
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#16202e'); g.addColorStop(1,'#0c121b');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 60px sans-serif';
-  ctx.fillText('2D 枪战 4.17 版',W/2,100);
+  ctx.fillText('2D 枪战 4.19 版',W/2,100);
   ctx.font='16px sans-serif'; ctx.fillStyle='#9fb3c8';
   ctx.fillText('血量条 · 第二层 · 传送门 · 小狗助手 · 巨人药水 · 限时挑战 · 燃烧/冰冻手榴弹 · 道具 · 音效',W/2,136);
 
@@ -1187,9 +1204,18 @@ function drawEditor(){
   ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 30px sans-serif';
   ctx.fillText('地图编辑器',W/2,46);
   ctx.font='15px sans-serif'; ctx.fillStyle='#c4a8ff';
-  ctx.fillText('鼠标拖动画墙  ｜  1/2/3 载入底图墙  ｜  C 清空  ｜  S 保存并开玩  ｜  Esc 返回标题',W/2,84);
+  ctx.fillText('拖动画墙  ｜  下方按钮操作（键盘 1/2/3 载入 · C 清空 · S 保存 · Esc 返回）',W/2,84);
   ctx.fillStyle='#9fb3c8'; ctx.font='13px sans-serif';
   ctx.fillText('（蓝色=蓝队复活点，红色=红队复活点；保存后空格即可用你的地图开玩）',W/2,110);
+  // 底部操作按钮（点按钮 = 对应键盘操作，手机端也能用）
+  editorButtons=[];
+  const by=H-78, bw=195, bh=52, gap=10, bx0=20;
+  drawMenuBtn(editorButtons,'load_ruins','🧱 废墟底图',bx0+0*(bw+gap),by,bw,bh,false);
+  drawMenuBtn(editorButtons,'load_ice','❄ 冰雪底图',bx0+1*(bw+gap),by,bw,bh,false);
+  drawMenuBtn(editorButtons,'load_factory','🏭 工厂底图',bx0+2*(bw+gap),by,bw,bh,false);
+  drawMenuBtn(editorButtons,'clear','🧹 清空',bx0+3*(bw+gap),by,bw,bh,false);
+  drawMenuBtn(editorButtons,'save','💾 保存并开玩',bx0+4*(bw+gap),by,bw,bh,false);
+  drawMenuBtn(editorButtons,'back','🏠 返回标题',bx0+5*(bw+gap),by,bw,bh,false);
 }
 
 // ---------------- 绘制：结算 ----------------
