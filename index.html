@@ -13,7 +13,7 @@
 <canvas id="game" width="1280" height="720" data-page-node-id="FOf3CcHumoTnigBhJozZcv"></canvas>
 <input id="nameInput" maxlength="12" placeholder="输入名字（排行榜用）" data-page-node-id="eTHmW5CEAJTQRAbdIfnkUq" />
 <style>
-  #nameInput{position:absolute;left:50%;top:19%;transform:translateX(-50%);width:240px;padding:10px 14px;font-size:18px;border:2px solid #ffd24a;border-radius:10px;background:rgba(20,28,40,0.92);color:#fff;text-align:center;outline:none;display:none;z-index:10;}
+  #nameInput{position:absolute;left:35.9%;top:16%;transform:translateX(-50%);width:240px;padding:10px 14px;font-size:18px;border:2px solid #ffd24a;border-radius:10px;background:rgba(20,28,40,0.92);color:#fff;text-align:center;outline:none;display:none;z-index:10;}
   #nameInput::placeholder{color:#9fb3c8;}
 </style>
 <script>
@@ -201,7 +201,7 @@ const MAPS = {
 const keys = {};
 const pressed = {};
 const nameEl = document.getElementById('nameInput');
-let clPanel = { x:20, y:450, w:300, collapsed:false, drag:null }; // 标题公告面板（可拖动/可最小化）
+let clPanel = { x:910, y:530, w:330, collapsed:false, drag:null }; // 标题公告面板（右侧栏，可拖动/可最小化）
 function once(code){ if(pressed[code]){ pressed[code]=false; return true; } return false; }
 window.addEventListener('keydown', e=>{
   if(document.activeElement===nameEl) return;
@@ -1089,44 +1089,51 @@ function handleDeviceClick(p){
 function drawTitle(){
   const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#16202e'); g.addColorStop(1,'#0c121b');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 60px sans-serif';
-  ctx.fillText('2D 枪战 4.19 版',W/2,100);
+  // 标题区（居中于左/中设置区，x≈460；名字输入框已定位到标题正下方）
+  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 58px sans-serif';
+  ctx.fillText('2D 枪战 4.19 版',460,62);
   ctx.font='16px sans-serif'; ctx.fillStyle='#9fb3c8';
-  ctx.fillText('血量条 · 第二层 · 传送门 · 小狗助手 · 巨人药水 · 限时挑战 · 燃烧/冰冻手榴弹 · 道具 · 音效',W/2,136);
+  ctx.fillText('双人 / 人机 / Boss / 限时挑战 · 第二层 · 传送门 · 小狗助手 · 巨人药水 · 道具 · 音效',460,98);
+  // （顶部输入框用于填写排行榜名字，已对齐到标题下方）
 
-  ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.fillText('选择模式（点按钮或按 1 / 2 / 3 / T）',W/2,196);
-  drawBtn('mode_pvp','① 双人',53,214,250,44,mode==='pvp');
-  drawBtn('mode_pve','② 人机',313,214,250,44,mode==='pve');
-  drawBtn('mode_boss','③ Boss战',573,214,250,44,mode==='boss');
-  drawBtn('mode_time','④ 限时挑战',833,214,250,44,mode==='time');
+  // —— 选择模式 ——
+  ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.fillText('选择模式（点按钮或按 1 / 2 / 3 / T）',460,200);
+  drawBtn('mode_pvp','① 双人',139,218,150,44,mode==='pvp');
+  drawBtn('mode_pve','② 人机',303,218,150,44,mode==='pve');
+  drawBtn('mode_boss','③ Boss战',467,218,150,44,mode==='boss');
+  drawBtn('mode_time','④ 限时挑战',631,218,150,44,mode==='time');
 
-  ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText('选择队伍（人机模式生效）',W/2,288);
-  drawBtn('team_blue','🔵 蓝队',W/2-150,302,140,44,playerTeam==='blue');
-  drawBtn('team_red','🔴 红队',W/2+10,302,140,44,playerTeam==='red');
+  // —— 选择队伍 ——
+  ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText('选择队伍（人机模式生效）',460,298);
+  drawBtn('team_blue','🔵 蓝队',303,316,150,44,playerTeam==='blue');
+  drawBtn('team_red','🔴 红队',467,316,150,44,playerTeam==='red');
 
-  ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.fillText('选择地图（点按钮或按 7 / 8 / 9 / 4 / 5）',W/2,378);
-  drawBtn('map_ruins','7 废墟城市',80,396,150,44,selMap==='ruins');
-  drawBtn('map_ice','8 冰雪荒原',245,396,150,44,selMap==='ice');
-  drawBtn('map_factory','9 废弃工厂',410,396,150,44,selMap==='factory');
-  drawBtn('map_jungle','4 丛林战场',575,396,150,44,selMap==='jungle');
-  drawBtn('map_space','5 太空站',740,396,150,44,selMap==='space');
-  drawBtn('map_house','6 双层小楼',905,396,150,44,selMap==='house');
-  if(MAPS.custom) drawBtn('map_custom','0 我的地图',W/2-150,448,180,44,selMap==='custom');
-  drawBtn('edit','✏ 编辑地图',W/2+50,448,180,44,false);
+  // —— 选择地图（2×3 网格）——
+  ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.fillText('选择地图（点按钮或按 7 / 8 / 9 / 4 / 5）',460,386);
+  drawBtn('map_ruins','7 废墟城市',69,404,250,44,selMap==='ruins');
+  drawBtn('map_ice','8 冰雪荒原',335,404,250,44,selMap==='ice');
+  drawBtn('map_factory','9 废弃工厂',601,404,250,44,selMap==='factory');
+  drawBtn('map_jungle','4 丛林战场',69,456,250,44,selMap==='jungle');
+  drawBtn('map_space','5 太空站',335,456,250,44,selMap==='space');
+  drawBtn('map_house','6 双层小楼',601,456,250,44,selMap==='house');
 
-  drawBtn('start','▶ 开始游戏（空格）',W/2-150,510,300,54,false);
+  // —— 我的地图 / 编辑地图 ——
+  if(MAPS.custom) drawBtn('map_custom','0 我的地图',202,508,250,44,selMap==='custom');
+  drawBtn('edit','✏ 编辑地图', MAPS.custom?468:335, 508, 250, 44, false);
 
-  ctx.fillStyle='#ffd24a'; ctx.font='14px sans-serif'; ctx.fillText('📝 排行榜名字：'+(playerName||'（请在顶部输入）'),W/2,168);
+  // —— 开始游戏 ——
+  drawBtn('start','▶ 开始游戏（空格）',310,570,300,54,false);
+
+  // 底部操作提示
   ctx.fillStyle='#9fb3c8'; ctx.font='13px sans-serif';
-  ctx.fillText('🏠 第二层：走到平台/楼梯旁，蓝队按 F、红队按 /（触屏点「上下」）上楼；走下平台边缘掉回1层；不同层打不到对方',W/2,606);
-  ctx.fillText('🎁 奖励箱：碰到即开，获得 3~5 个手榴弹',W/2,628);
-  ctx.fillText('游戏中按 Esc 暂停；空格 回到标题；AI 难度在暂停里调',W/2,650);
+  ctx.fillText('🏠 第二层：走到平台/楼梯旁，蓝队按 F、红队按 /（触屏点「上下」）上楼；走下平台边缘掉回1层；不同层打不到对方',460,646);
+  ctx.fillText('🎁 奖励箱碰到即开得 3~5 手榴弹 ｜ 游戏中按 Esc 暂停、空格回标题、AI 难度在暂停里调',460,670);
 
   drawLeaderboard();
   drawChangelog();
 }
 function drawLeaderboard(){
-  const x=W-330, y=196, w=300, h=300;
+  const x=910, y=198, w=330, h=286;
   ctx.fillStyle='rgba(255,255,255,0.06)'; ctx.fillRect(x,y,w,h);
   ctx.strokeStyle='rgba(255,210,74,0.5)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
   ctx.textAlign='center'; ctx.fillStyle='#ffd24a'; ctx.font='bold 18px sans-serif';
@@ -1134,20 +1141,21 @@ function drawLeaderboard(){
   ctx.textAlign='left';
   if(!scores.length){ ctx.fillStyle='#9fb3c8'; ctx.font='14px sans-serif'; ctx.fillText('还没有记录，快去打一局！', x+16, y+58); return; }
   let yy=y+54;
-  for(let i=0;i<scores.length && i<7;i++){
+  const show=Math.min(scores.length,7);
+  for(let i=0;i<show;i++){
     const s=scores[i];
     ctx.fillStyle=i===0?'#ffd24a':'#e8eef5'; ctx.font='15px sans-serif';
     ctx.fillText((i+1)+'. '+(s.name||(s.team==='blue'?'🔵':'🔴'))+(s.win?' 胜':' 负')+'  '+s.score+'分', x+16, yy);
     const mn=s.mode==='pve'?'人机':s.mode==='boss'?'Boss':s.mode==='time'?'限时':'双人'; const mp=MAPS[s.map]?MAPS[s.map].name:s.map;
     const kd = s.mode==='boss' ? (s.kills+'伤害') : (s.kills+'杀 '+s.deaths+'死');
-    ctx.fillText(kd+' · '+mn+' · '+mp+' · '+s.time+'s', x+16, yy+16);
-    yy+=38;
+    ctx.fillText(kd+' · '+mn+' · '+mp+' · '+s.time+'s', x+16, yy+18);
+    yy+=34;
   }
 }
 function drawChangelog(){
   const x=clPanel.x, y=clPanel.y, w=clPanel.w, barH=42;
   const barX=x-12, barY=y-barH, barW=w+24;
-  const bodyH = clPanel.collapsed ? 0 : (CHANGELOG.length*30+24);
+  const bodyH = clPanel.collapsed ? 0 : Math.min(CHANGELOG.length*22+16, 712-clPanel.y);
   ctx.textAlign='left'; ctx.globalAlpha=0.95;
   ctx.fillStyle='rgba(0,0,0,0.45)'; ctx.fillRect(barX, barY, barW, barH+bodyH);
   ctx.strokeStyle='rgba(255,210,74,0.6)'; ctx.lineWidth=2; ctx.strokeRect(barX, barY, barW, barH+bodyH);
@@ -1158,16 +1166,17 @@ function drawChangelog(){
   ctx.fillStyle='#fff'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center'; ctx.fillText(clPanel.collapsed?'▢':'–', bx+bw/2, barY+27); ctx.textAlign='left';
   if(clPanel.collapsed){ ctx.globalAlpha=1; return; }
   ctx.font='13px sans-serif';
-  for(let i=0;i<CHANGELOG.length;i++){
+  const shown=Math.floor((bodyH-16)/22);
+  for(let i=0;i<CHANGELOG.length && i<shown;i++){
     ctx.fillStyle=i===0?'#fff':'#bcd';
-    wrapText(CHANGELOG[i], x, y+18+i*30, w, 18);
+    wrapText(CHANGELOG[i], x, y+18+i*22, w-16, 18);
   }
   ctx.globalAlpha=1; ctx.textAlign='center';
 }
 function clPanelRects(){
   const x=clPanel.x, y=clPanel.y, w=clPanel.w, barH=42;
   const barX=x-12, barY=y-barH, barW=w+24;
-  const bodyH = clPanel.collapsed ? 0 : (CHANGELOG.length*30+24);
+  const bodyH = clPanel.collapsed ? 0 : Math.min(CHANGELOG.length*22+16, 712-clPanel.y);
   // 按钮命中热区（比可见按钮稍大，贴边时仍可点）
   const btnX=barX+barW-44, btnY=barY, btnW=44, btnH=barH;
   const btnHitX=btnX-30, btnHitW=btnW+40, btnHitH=btnH+20;
