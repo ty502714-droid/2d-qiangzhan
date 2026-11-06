@@ -57,8 +57,11 @@ let scores = [];             // 本地排行榜（localStorage）
 let matchStart = 0;          // 本局开始时间
 let playerName = '';         // 玩家名字（排行榜用，存 localStorage）
 let banner = {text:'', t:0}; // 连杀横幅
-let touchPlayer = null;      // 触屏控制的对象（人类玩家）
-const touch = { joy:null, joyId:null, shoot:false, shootId:null }; // 触屏状态（joyId/shootId 区分多指）
+// 触屏控制：按队伍分边，蓝方在左边、红方在右边（双人模式两人同屏各控一方）
+const touch = { blue:{joy:null,joyId:null,shoot:false,shootId:null}, red:{joy:null,joyId:null,shoot:false,shootId:null} };
+let touchHumanSides = ['blue'];        // 哪些队伍由人类触屏控制（pvp=蓝+红；其余=玩家所选队伍）
+let touchPlayers = { blue:null, red:null }; // 各队伍对应的人类玩家对象
+let touchPlayer = null;      // 兼容旧引用（已废弃，保留不影响）
 let touchUsed = false;       // 是否使用过触屏（用于显示虚拟按键）
 let deviceType = 'pc';       // 设备类型：'pc' 电脑(键盘鼠标) | 'mobile' 手机/平板(全部改为按钮)
 let deviceButtons = [];      // 设备选择界面按钮命中区
@@ -66,6 +69,7 @@ function isMobile(){ return deviceType==='mobile'; }
 
 // 更新公告（主界面 / 标题栏左侧）
 const CHANGELOG = [
+  '4.21 更新：手机端双人模式两人同屏各控一方——蓝方（玩家1）虚拟按键全部移到左边、红方（玩家2）控制套在右边（摇杆+射击/手雷/切换/炸弹/上下）；其余模式只显示你这一方的按键',
   '4.20 更新：整体配色大翻新——界面背景换成鲜艳蓝紫渐变、按钮改成青蓝发光+金黄高亮、地图背景与墙体更鲜亮、第二层平台/楼梯标记更醒目、标题文字做成彩带渐变',
   '4.19 更新：地图编辑器操作按钮化——底部新增「废墟/冰雪/工厂 底图」「清空」「保存并开玩」「返回标题」按钮（手机/鼠标都能点，键盘 1/2/3·C·S·Esc 仍可用）',
   '4.18 更新：游戏「退出」改成按钮——暂停菜单新增「🚪 退出游戏」、结算页新增「🏠 回到标题」按钮（触屏也能退出，键盘 Esc/空格 仍可用）',
@@ -243,23 +247,41 @@ if(cv.addEventListener){
 }
 
 // ---------------- 触屏控制（手机/平板） ----------------
+// 虚拟按键布局：蓝方（玩家1）全部在左边，红方（玩家2）全部在右边（双人同屏各控一方）
 const TB = {
-  shoot:{x:W-120,y:H-150,w:96,h:96},
-  gren: {x:W-250,y:H-110,w:80,h:80},
-  sw:   {x:W-360,y:H-110,w:80,h:80},
-  bomb: {x:W-250,y:H-240,w:80,h:80},
-  stair:{x:W-470,y:H-110,w:80,h:80},
+  blue:{
+    shoot:{x:24,    y:H-150, w:96, h:96},
+    bomb: {x:170,   y:H-240, w:80, h:80},
+    gren: {x:170,   y:H-110, w:80, h:80},
+    sw:   {x:280,   y:H-110, w:80, h:80},
+    stair:{x:390,   y:H-110, w:80, h:80},
+  },
+  red:{
+    shoot:{x:W-120, y:H-150, w:96, h:96},
+    bomb: {x:W-250, y:H-240, w:80, h:80},
+    gren: {x:W-250, y:H-110, w:80, h:80},
+    sw:   {x:W-360, y:H-110, w:80, h:80},
+    stair:{x:W-470, y:H-110, w:80, h:80},
+  },
 };
 const pauseBtn = { x:W-58, y:14, w:44, h:44 }; // 手机端右上角暂停按钮
 function inRect(p,r){ return p.x>=r.x && p.x<=r.x+r.w && p.y>=r.y && p.y<=r.y+r.h; }
-function touchAct(act){ if(!touchPlayer) return; if(act==='gren') touchPlayer.throwGrenade(); else if(act==='sw') touchPlayer.grenType=touchPlayer.grenType==='burn'?'freeze':'burn'; else if(act==='bomb') touchPlayer.placeBomb(); else if(act==='stair') touchPlayer.toggleFloor(); }
+function touchAct(side,act){ const p=touchPlayers[side]; if(!p) return; if(act==='gren') p.throwGrenade(); else if(act==='sw') p.grenType=p.grenType==='burn'?'freeze':'burn'; else if(act==='bomb') p.placeBomb(); else if(act==='stair') p.toggleFloor(); }
 function onTouchStart(p,id){
   touchUsed=true;
-  if(p.x < W*0.5){ if(touch.joy==null){ touch.joy={bx:p.x,by:p.y,cx:p.x,cy:p.y}; touch.joyId=id; } }
-  else { if(inRect(p,pauseBtn)){ state='paused'; return; } if(inRect(p,TB.shoot)){ touch.shoot=true; touch.shootId=id; } else if(inRect(p,TB.gren)) touchAct('gren'); else if(inRect(p,TB.sw)) touchAct('sw'); else if(inRect(p,TB.bomb)) touchAct('bomb'); else if(inRect(p,TB.stair)) touchAct('stair'); }
+  if(inRect(p,pauseBtn)){ state='paused'; return; }   // 暂停按钮（右上角）任意一方都可点
+  const side = (p.x < W*0.5) ? 'blue' : 'red';          // 左边=蓝方，右边=红方
+  if(!touchHumanSides.includes(side)) return;            // 该方是 AI，不接受触屏
+  const b=TB[side];
+  if(inRect(p,b.shoot)){ touch[side].shoot=true; touch[side].shootId=id; }
+  else if(inRect(p,b.gren)) touchAct(side,'gren');
+  else if(inRect(p,b.sw)) touchAct(side,'sw');
+  else if(inRect(p,b.bomb)) touchAct(side,'bomb');
+  else if(inRect(p,b.stair)) touchAct(side,'stair');
+  else { if(touch[side].joy==null){ touch[side].joy={bx:p.x,by:p.y,cx:p.x,cy:p.y}; touch[side].joyId=id; } }
 }
-function onTouchMove(p,id){ if(touch.joy && id===touch.joyId){ touch.joy.cx=p.x; touch.joy.cy=p.y; } }
-function onTouchEnd(id){ if(touch.joy && id===touch.joyId){ touch.joy=null; touch.joyId=null; } if(touch.shoot && id===touch.shootId){ touch.shoot=false; touch.shootId=null; } }
+function onTouchMove(p,id){ for(const s of ['blue','red']){ const t=touch[s]; if(t.joy && id===t.joyId){ t.joy.cx=p.x; t.joy.cy=p.y; } } }
+function onTouchEnd(id){ for(const s of ['blue','red']){ const t=touch[s]; if(t.joy && id===t.joyId){ t.joy=null; t.joyId=null; } if(t.shoot && id===t.shootId){ t.shoot=false; t.shootId=null; } } }
 if(cv.addEventListener && hasPointer){
   cv.addEventListener('pointerdown', e=>{
     if(e.pointerType==='touch' && e.preventDefault) e.preventDefault(); // 阻止浏览器手势，保证可长按/多点
@@ -291,13 +313,16 @@ if(cv.addEventListener && hasPointer){
 function drawTBtn(r,label,active){ ctx.fillStyle=active?'rgba(255,210,74,0.5)':'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(r.x+r.w/2,r.y+r.h/2,r.w/2,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=2; ctx.stroke(); ctx.fillStyle='#fff'; ctx.font='bold 16px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(label,r.x+r.w/2,r.y+r.h/2); ctx.textBaseline='alphabetic'; }
 function drawTouchControls(){
   if(!touchUsed && !isMobile()) return;   // 手机端始终显示虚拟按键
-  if(touch.joy){ ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(touch.joy.bx,touch.joy.by,50,0,Math.PI*2); ctx.stroke(); ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(touch.joy.cx,touch.joy.cy,26,0,Math.PI*2); ctx.fill(); }
-  else { ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(W*0.25,H-150,50,0,Math.PI*2); ctx.stroke(); }
-  drawTBtn(TB.shoot,'射击', touch.shoot);
-  drawTBtn(TB.gren,'手雷', false);
-  drawTBtn(TB.sw,'切换', false);
-  drawTBtn(TB.bomb,'炸弹', false);
-  drawTBtn(TB.stair,'上下', false);
+  for(const side of touchHumanSides){
+    const t=touch[side], b=TB[side];
+    if(t.joy){ ctx.strokeStyle='rgba(255,255,255,0.4)'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(t.joy.bx,t.joy.by,50,0,Math.PI*2); ctx.stroke(); ctx.fillStyle='rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.arc(t.joy.cx,t.joy.cy,26,0,Math.PI*2); ctx.fill(); }
+    else { const hx = side==='blue' ? W*0.22 : W*0.78; ctx.strokeStyle='rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(hx,H-150,50,0,Math.PI*2); ctx.stroke(); } // 待机摇杆提示
+    drawTBtn(b.shoot,'射击', t.shoot);
+    drawTBtn(b.gren,'手雷', false);
+    drawTBtn(b.sw,'切换', false);
+    drawTBtn(b.bomb,'炸弹', false);
+    drawTBtn(b.stair,'上下', false);
+  }
 }
 
 function saveCustom(){
@@ -500,8 +525,9 @@ class Player {
       if(once('KeyL')) this.placeBomb();
       if(once('Slash')) this.toggleFloor();
     }
-    if(this===touchPlayer && touch.joy){ const dx=touch.joy.cx-touch.joy.bx, dy=touch.joy.cy-touch.joy.by, m=Math.hypot(dx,dy); if(m>16){ mx=dx/m; my=dy/m; } }
-    if(this===touchPlayer && touch.shoot) this.shoot();
+    const tt = touch[this.team]; // 该队伍对应的触屏状态（蓝在左、红在右）
+    if(tt && tt.joy){ const dx=tt.joy.cx-tt.joy.bx, dy=tt.joy.cy-tt.joy.by, m=Math.hypot(dx,dy); if(m>16){ mx=dx/m; my=dy/m; } }
+    if(tt && tt.shoot) this.shoot();
     if(this.aiMove){ mx=this.aiMove.x; my=this.aiMove.y; const m=Math.hypot(mx,my)||1; mx/=m; my/=m; }
     if(mx||my){ const m=Math.hypot(mx,my)||1; this.vx=mx/m*this.speed; this.vy=my/m*this.speed; if(!this.isAI) this.aim=Math.atan2(my,mx); }
     else { this.vx*=0.8; this.vy*=0.8; }
@@ -780,7 +806,10 @@ function startGame(){
     const redAI  = (mode==='pvp') ? false : (pTeam!=='red');
     players=[ new Player('blue',...map.spawns.blue,blueAI), new Player('red',...map.spawns.red,redAI) ];
   }
-  touchPlayer = players.find(p=>!p.isAI) || players[0];
+  // 触屏控制方：双人模式蓝红都由人控；其余模式只有玩家所选队伍由人控，另一方为 AI
+  touchPlayers = { blue:null, red:null };
+  for(const p of players){ if(!p.isAI) touchPlayers[p.team]=p; }
+  touchHumanSides = (mode==='pvp') ? ['blue','red'] : [pTeam];
   if(mode==='time'){
     // 限时挑战：1人 vs 2个AI，60秒冲分
     const eTeam = pTeam==='blue'?'red':'blue';
@@ -1116,7 +1145,7 @@ function drawTitle(){
   const tg=ctx.createLinearGradient(310,0,610,0);
   tg.addColorStop(0,'#7afcff'); tg.addColorStop(0.5,'#ffd24a'); tg.addColorStop(1,'#ff7afc');
   ctx.fillStyle=tg; ctx.font='bold 58px sans-serif';
-  ctx.fillText('2D 枪战 4.20 版',460,62);
+  ctx.fillText('2D 枪战 4.21 版',460,62);
   ctx.font='16px sans-serif'; ctx.fillStyle='#cfe6ff';
   ctx.fillText('双人 / 人机 / Boss / 限时挑战 · 第二层 · 传送门 · 小狗助手 · 巨人药水 · 道具 · 音效',460,98);
   // （顶部输入框用于填写排行榜名字，已对齐到标题下方）
