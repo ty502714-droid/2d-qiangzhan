@@ -14,7 +14,7 @@
 <input id="nameInput" maxlength="12" placeholder="输入名字（排行榜用）" data-page-node-id="eTHmW5CEAJTQRAbdIfnkUq" />
 <style>
   #nameInput{position:absolute;left:35.9%;top:16%;transform:translateX(-50%);width:240px;padding:10px 14px;font-size:18px;border:2px solid #ffd24a;border-radius:10px;background:rgba(20,28,40,0.92);color:#fff;text-align:center;outline:none;display:none;z-index:10;}
-  #nameInput::placeholder{color:#9fb3c8;}
+  #nameInput::placeholder{color:#bcd6f5;}
 </style>
 <script>
 // ============================================================
@@ -66,6 +66,7 @@ function isMobile(){ return deviceType==='mobile'; }
 
 // 更新公告（主界面 / 标题栏左侧）
 const CHANGELOG = [
+  '4.20 更新：整体配色大翻新——界面背景换成鲜艳蓝紫渐变、按钮改成青蓝发光+金黄高亮、地图背景与墙体更鲜亮、第二层平台/楼梯标记更醒目、标题文字做成彩带渐变',
   '4.19 更新：地图编辑器操作按钮化——底部新增「废墟/冰雪/工厂 底图」「清空」「保存并开玩」「返回标题」按钮（手机/鼠标都能点，键盘 1/2/3·C·S·Esc 仍可用）',
   '4.18 更新：游戏「退出」改成按钮——暂停菜单新增「🚪 退出游戏」、结算页新增「🏠 回到标题」按钮（触屏也能退出，键盘 Esc/空格 仍可用）',
   '4.17 更新：新增「设备选择」界面——小绵羊工作室之后会问你用什么玩，选「手机/平板」则所有按键变成屏幕按钮（移动摇杆、射击/手雷/切换/炸弹/上下 + 右上角暂停键），选「电脑」保持键盘鼠标',
@@ -167,31 +168,31 @@ const ITEM_KEYS = Object.keys(ITEMS);
 
 // ---------------- 地图 ----------------
 const MAPS = {
-  ruins:{name:'废墟城市', bg:'#1b2433', bg2:'#101723', wall:'#3a4a63', accent:'#6b86b3',
+  ruins:{name:'废墟城市', bg:'#27466e', bg2:'#142640', wall:'#52709c', accent:'#6b86b3',
     walls:[[180,180,260,30],[180,180,30,260],[180,420,260,30],[840,180,260,30],[1070,180,30,260],[840,420,260,30],
            [600,120,30,150],[650,450,30,150],[300,330,80,60],[900,330,80,60]],
     floor2:[[470,260,340,200]], stairs:[[480,270,50,50],[750,390,50,50]],
     spawns:{blue:[110,360], red:[1170,360]}},
-  ice:{name:'冰雪荒原', bg:'#16283a', bg2:'#0c1622', wall:'#4a6f8c', accent:'#9fd6ff',
+  ice:{name:'冰雪荒原', bg:'#1d4a6e', bg2:'#0e2638', wall:'#5fa0c8', accent:'#9fd6ff',
     walls:[[150,300,30,120],[1100,300,30,120],[400,150,200,30],[680,540,200,30],[560,330,30,60]],
     floor2:[[760,250,300,200]], stairs:[[770,260,50,50],[1000,390,50,50]],
     spawns:{blue:[110,360], red:[1170,360]}},
-  factory:{name:'废弃工厂', bg:'#241b2a', bg2:'#150f1c', wall:'#5a4a6b', accent:'#b79ad6',
+  factory:{name:'废弃工厂', bg:'#3a2350', bg2:'#1d1230', wall:'#7a5e95', accent:'#b79ad6',
     walls:[[160,200,360,40],[160,200,40,320],[760,200,360,40],[1080,200,40,320],
            [160,480,200,40],[920,480,200,40],[560,260,160,200],[40,300,60,120],[1180,300,60,120],
            [380,560,180,40],[720,560,180,40]],
     // 修复：原复活点 [100,360]/[1180,360] 紧贴侧墙(宽60)，半径16会卡墙 → 内移到 130/1150
     floor2:[[500,70,280,180]], stairs:[[510,80,50,50],[720,180,50,50]],
     spawns:{blue:[130,360], red:[1150,360]}},
-  jungle:{name:'丛林战场', bg:'#16271c', bg2:'#0c160f', wall:'#3c6b4a', accent:'#7fe0a0',
+  jungle:{name:'丛林战场', bg:'#1f4630', bg2:'#0f2417', wall:'#4f9a68', accent:'#7fe0a0',
     walls:[[300,200,40,320],[940,200,40,320],[560,140,160,40],[560,540,160,40],[200,330,80,60],[1000,330,80,60],[640,300,40,120]],
     floor2:[[60,130,240,180]], stairs:[[70,140,50,50],[240,250,50,50]],
     spawns:{blue:[110,360], red:[1170,360]}},
-  space:{name:'太空站', bg:'#1a1530', bg2:'#0d0a1c', wall:'#4a3f6b', accent:'#b79ad6',
+  space:{name:'太空站', bg:'#2c1f56', bg2:'#160f33', wall:'#6a5a9a', accent:'#b79ad6',
     walls:[[300,150,200,40],[300,530,200,40],[780,150,200,40],[780,530,200,40],[600,300,80,120],[150,330,40,60],[1090,330,40,60]],
     floor2:[[840,180,240,200]], stairs:[[850,190,50,50],[1020,320,50,50]],
     spawns:{blue:[110,360], red:[1170,360]}},
-  house:{name:'双层小楼', bg:'#2b241d', bg2:'#191410', wall:'#7a5c3a', accent:'#d8b078',
+  house:{name:'双层小楼', bg:'#4a3826', bg2:'#241a12', wall:'#9a7648', accent:'#d8b078',
     walls:[[250,120,160,30],[870,120,160,30],[250,570,160,30],[870,570,160,30],[140,280,30,160],[1110,280,30,160]],
     floor2:[[360,190,560,340]], stairs:[[380,210,60,60],[820,210,60,60],[380,440,60,60],[820,440,60,60]],
     spawns:{blue:[110,360], red:[1170,360]}},
@@ -301,7 +302,7 @@ function drawTouchControls(){
 
 function saveCustom(){
   try{ localStorage.setItem('qiangzhan_custom', JSON.stringify(editorWalls)); }catch(e){}
-  MAPS.custom = {name:'我的地图', bg:'#2a2238', bg2:'#1d1729', wall:'#9a7ad6', accent:'#c4a8ff',
+  MAPS.custom = {name:'我的地图', bg:'#2a1f48', bg2:'#1d1438', wall:'#9a7ad6', accent:'#c4a8ff',
     walls:editorWalls.slice(), spawns:{blue:[130,360], red:[1150,360]} };
   selMap='custom'; state='title';
   announce('已保存自定义地图 🗺', '#c4a8ff');
@@ -837,16 +838,16 @@ function drawBackground(){
   // 第二层平台（站上平台=2层，不同层互相打不到；1层子弹会被平台挡住）
   if(map.floor2 && map.floor2.length){
     for(const f of map.floor2){
-      ctx.fillStyle='rgba(255,255,255,0.10)'; ctx.fillRect(f[0],f[1],f[2],f[3]);
-      ctx.strokeStyle='rgba(255,255,255,0.08)'; ctx.lineWidth=1;
+      ctx.fillStyle='rgba(110,215,255,0.18)'; ctx.fillRect(f[0],f[1],f[2],f[3]);
+      ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=1;
       for(let y=f[1]+20;y<f[1]+f[3];y+=20){ ctx.beginPath(); ctx.moveTo(f[0],y); ctx.lineTo(f[0]+f[2],y); ctx.stroke(); }
-      ctx.strokeStyle=map.accent; ctx.lineWidth=3; ctx.strokeRect(f[0],f[1],f[2],f[3]);
+      ctx.strokeStyle='rgba(150,235,255,0.9)'; ctx.lineWidth=3; ctx.strokeRect(f[0],f[1],f[2],f[3]);
       ctx.fillStyle=map.accent; ctx.font='bold 16px sans-serif'; ctx.textAlign='left';
       ctx.fillText('2层', f[0]+8, f[1]+22);
     }
     for(const s of (map.stairs||[])){
-      ctx.fillStyle='rgba(255,210,74,0.30)'; ctx.fillRect(s[0],s[1],s[2],s[3]);
-      ctx.strokeStyle='rgba(255,210,74,0.85)'; ctx.lineWidth=2; ctx.strokeRect(s[0],s[1],s[2],s[3]);
+      ctx.fillStyle='rgba(255,225,60,0.40)'; ctx.fillRect(s[0],s[1],s[2],s[3]);
+      ctx.strokeStyle='rgba(255,240,120,0.95)'; ctx.lineWidth=2; ctx.strokeRect(s[0],s[1],s[2],s[3]);
       for(let y=s[1]+8;y<s[1]+s[3];y+=10){ ctx.beginPath(); ctx.moveTo(s[0]+4,y); ctx.lineTo(s[0]+s[2]-4,y); ctx.stroke(); }
     }
   }
@@ -916,12 +917,12 @@ function drawUI(){
     const human=players.find(p=>!p.isAI)||players[0];
     ctx.textAlign='center'; ctx.fillStyle=timeLeft<10?'#ff5555':'#fff'; ctx.font='bold 22px sans-serif';
     ctx.fillText('⏰ '+Math.ceil(timeLeft)+'s  ｜  击杀 '+human.score,W/2,32);
-    ctx.font='14px sans-serif'; ctx.fillStyle='#9fb3c8';
+    ctx.font='14px sans-serif'; ctx.fillStyle='#bcd6f5';
     ctx.fillText('限时挑战：60秒内尽量多杀敌人！',W/2,54);
   } else {
     ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 22px sans-serif';
     ctx.fillText('🔵 蓝 '+players[0].score+'   :   '+players[1].score+' 🔴',W/2,32);
-    ctx.font='14px sans-serif'; ctx.fillStyle='#9fb3c8';
+    ctx.font='14px sans-serif'; ctx.fillStyle='#bcd6f5';
     ctx.fillText('先到 '+WIN_SCORE+' 杀获胜',W/2,54);
   }
   drawStatus(players[0],24,H-90,'left');
@@ -946,18 +947,32 @@ function drawUI(){
 // ---------------- 绘制：标题 ----------------
 function drawBtn(id,label,x,y,w,h,active){
   titleButtons.push({id,x,y,w,h});
-  ctx.fillStyle = active ? 'rgba(255,210,74,0.92)' : 'rgba(255,255,255,0.12)';
-  ctx.fillRect(x,y,w,h);
-  ctx.strokeStyle = active ? '#ffd24a' : 'rgba(255,255,255,0.30)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
-  ctx.fillStyle = active ? '#1a1a1a' : '#e8eef5'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  if(active){
+    const bg=ctx.createLinearGradient(x,y,x,y+h); bg.addColorStop(0,'#ffe05a'); bg.addColorStop(1,'#ffb300');
+    ctx.fillStyle=bg; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='rgba(255,255,255,0.30)'; ctx.fillRect(x,y,w,h*0.42);
+    ctx.fillStyle='#1a1a1a';
+  } else {
+    ctx.fillStyle='rgba(96,170,255,0.22)'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='#e3f3ff';
+  }
+  ctx.font='bold 18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.strokeStyle = active ? '#ff9e00' : 'rgba(140,205,255,0.65)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
   ctx.fillText(label, x+w/2, y+h/2+1); ctx.textBaseline='alphabetic';
 }
 function drawMenuBtn(arr,id,label,x,y,w,h,active){
   arr.push({id,x,y,w,h});
-  ctx.fillStyle = active ? 'rgba(255,210,74,0.92)' : 'rgba(255,255,255,0.12)';
-  ctx.fillRect(x,y,w,h);
-  ctx.strokeStyle = active ? '#ffd24a' : 'rgba(255,255,255,0.30)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
-  ctx.fillStyle = active ? '#1a1a1a' : '#e8eef5'; ctx.font='bold 18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  if(active){
+    const bg=ctx.createLinearGradient(x,y,x,y+h); bg.addColorStop(0,'#ffe05a'); bg.addColorStop(1,'#ffb300');
+    ctx.fillStyle=bg; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='rgba(255,255,255,0.30)'; ctx.fillRect(x,y,w,h*0.42);
+    ctx.fillStyle='#1a1a1a';
+  } else {
+    ctx.fillStyle='rgba(96,170,255,0.22)'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='#e3f3ff';
+  }
+  ctx.font='bold 18px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.strokeStyle = active ? '#ff9e00' : 'rgba(140,205,255,0.65)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
   ctx.fillText(label, x+w/2, y+h/2+1); ctx.textBaseline='alphabetic';
 }
 function handleTitleClick(p){
@@ -1040,7 +1055,7 @@ function titlePointer(p,type){
   }
 }
 function drawSplash(){
-  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#241a36'); g.addColorStop(1,'#0e0a18');
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#3a1d7a'); g.addColorStop(1,'#160a36');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   ctx.textAlign='center';
   ctx.font='96px sans-serif'; ctx.fillText('🐑', W/2, H/2-130);
@@ -1055,23 +1070,30 @@ function drawSplash(){
 // ---------------- 设备选择界面 ----------------
 function drawDevBtn(id,label,x,y,w,h,active){
   deviceButtons.push({id,x,y,w,h});
-  ctx.fillStyle = active ? 'rgba(255,210,74,0.92)' : 'rgba(255,255,255,0.12)';
-  ctx.fillRect(x,y,w,h);
-  ctx.strokeStyle = active ? '#ffd24a' : 'rgba(255,255,255,0.30)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
-  ctx.fillStyle = active ? '#1a1a1a' : '#e8eef5'; ctx.font='bold 22px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  if(active){
+    const bg=ctx.createLinearGradient(x,y,x,y+h); bg.addColorStop(0,'#ffe05a'); bg.addColorStop(1,'#ffb300');
+    ctx.fillStyle=bg; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='rgba(255,255,255,0.30)'; ctx.fillRect(x,y,w,h*0.42);
+    ctx.fillStyle='#1a1a1a';
+  } else {
+    ctx.fillStyle='rgba(96,170,255,0.22)'; ctx.fillRect(x,y,w,h);
+    ctx.fillStyle='#e3f3ff';
+  }
+  ctx.font='bold 22px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.strokeStyle = active ? '#ff9e00' : 'rgba(140,205,255,0.65)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h);
   ctx.fillText(label, x+w/2, y+h/2+1); ctx.textBaseline='alphabetic';
 }
 function drawDevice(){
-  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#16202e'); g.addColorStop(1,'#0c121b');
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#15307e'); g.addColorStop(1,'#0a1336');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   deviceButtons=[];
   ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 46px sans-serif';
   ctx.fillText('你正在用什么玩？', W/2, 210);
-  ctx.font='20px sans-serif'; ctx.fillStyle='#9fb3c8';
+  ctx.font='20px sans-serif'; ctx.fillStyle='#bcd6f5';
   ctx.fillText('选择设备，我们将为你安排合适的操作方式', W/2, 256);
   drawDevBtn('dev_pc','💻 电脑', 360, 310, 240, 130, deviceType==='pc');
   drawDevBtn('dev_mobile','📱 手机 / 平板', 680, 310, 240, 130, deviceType==='mobile');
-  ctx.fillStyle='#9fb3c8'; ctx.font='15px sans-serif';
+  ctx.fillStyle='#bcd6f5'; ctx.font='15px sans-serif';
   ctx.fillText('电脑：键盘 + 鼠标，无需更改', W/2-120, 480);
   ctx.fillText('手机/平板：所有按键变成屏幕按钮', W/2+120, 480);
 }
@@ -1087,12 +1109,15 @@ function handleDeviceClick(p){
   }
 }
 function drawTitle(){
-  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#16202e'); g.addColorStop(1,'#0c121b');
+  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,'#15307e'); g.addColorStop(1,'#0a1336');
   ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
   // 标题区（居中于左/中设置区，x≈460；名字输入框已定位到标题正下方）
-  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 58px sans-serif';
-  ctx.fillText('2D 枪战 4.19 版',460,62);
-  ctx.font='16px sans-serif'; ctx.fillStyle='#9fb3c8';
+  ctx.textAlign='center';
+  const tg=ctx.createLinearGradient(310,0,610,0);
+  tg.addColorStop(0,'#7afcff'); tg.addColorStop(0.5,'#ffd24a'); tg.addColorStop(1,'#ff7afc');
+  ctx.fillStyle=tg; ctx.font='bold 58px sans-serif';
+  ctx.fillText('2D 枪战 4.20 版',460,62);
+  ctx.font='16px sans-serif'; ctx.fillStyle='#cfe6ff';
   ctx.fillText('双人 / 人机 / Boss / 限时挑战 · 第二层 · 传送门 · 小狗助手 · 巨人药水 · 道具 · 音效',460,98);
   // （顶部输入框用于填写排行榜名字，已对齐到标题下方）
 
@@ -1125,7 +1150,7 @@ function drawTitle(){
   drawBtn('start','▶ 开始游戏（空格）',310,570,300,54,false);
 
   // 底部操作提示
-  ctx.fillStyle='#9fb3c8'; ctx.font='13px sans-serif';
+  ctx.fillStyle='#bcd6f5'; ctx.font='13px sans-serif';
   ctx.fillText('🏠 第二层：走到平台/楼梯旁，蓝队按 F、红队按 /（触屏点「上下」）上楼；走下平台边缘掉回1层；不同层打不到对方',460,646);
   ctx.fillText('🎁 奖励箱碰到即开得 3~5 手榴弹 ｜ 游戏中按 Esc 暂停、空格回标题、AI 难度在暂停里调',460,670);
 
@@ -1139,7 +1164,7 @@ function drawLeaderboard(){
   ctx.textAlign='center'; ctx.fillStyle='#ffd24a'; ctx.font='bold 18px sans-serif';
   ctx.fillText('🏆 本地排行榜 / 最高分', x+w/2, y+26);
   ctx.textAlign='left';
-  if(!scores.length){ ctx.fillStyle='#9fb3c8'; ctx.font='14px sans-serif'; ctx.fillText('还没有记录，快去打一局！', x+16, y+58); return; }
+  if(!scores.length){ ctx.fillStyle='#bcd6f5'; ctx.font='14px sans-serif'; ctx.fillText('还没有记录，快去打一局！', x+16, y+58); return; }
   let yy=y+54;
   const show=Math.min(scores.length,7);
   for(let i=0;i<show;i++){
@@ -1198,7 +1223,7 @@ function wrapText(t,x,y,maxW,lh){
 
 // ---------------- 绘制：地图编辑器 ----------------
 function drawEditor(){
-  ctx.fillStyle='#1d1729'; ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#2a1556'; ctx.fillRect(0,0,W,H);
   ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1;
   for(let x=0;x<W;x+=40){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
   for(let y=0;y<H;y+=40){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
@@ -1214,7 +1239,7 @@ function drawEditor(){
   ctx.fillText('地图编辑器',W/2,46);
   ctx.font='15px sans-serif'; ctx.fillStyle='#c4a8ff';
   ctx.fillText('拖动画墙  ｜  下方按钮操作（键盘 1/2/3 载入 · C 清空 · S 保存 · Esc 返回）',W/2,84);
-  ctx.fillStyle='#9fb3c8'; ctx.font='13px sans-serif';
+  ctx.fillStyle='#bcd6f5'; ctx.font='13px sans-serif';
   ctx.fillText('（蓝色=蓝队复活点，红色=红队复活点；保存后空格即可用你的地图开玩）',W/2,110);
   // 底部操作按钮（点按钮 = 对应键盘操作，手机端也能用）
   editorButtons=[];
@@ -1252,7 +1277,7 @@ function drawOver(){
   ctx.fillText('🏆 本地最高分：'+best,W/2,H/2);
   ctx.font='15px sans-serif';
   for(let i=0;i<scores.length && i<3;i++){ const s=scores[i]; ctx.fillStyle=i===0?'#ffd24a':'#bcd'; ctx.fillText((i+1)+'. '+(s.team==='blue'?'🔵':'🔴')+(s.win?'胜':'负')+'  '+s.score+'分（'+s.kills+'杀'+s.deaths+'死 · '+(s.mode==='pve'?'人机':s.mode==='time'?'限时':'双人')+'）',W/2,H/2+30+i*22); }
-  ctx.fillStyle='#9fb3c8'; ctx.font='20px sans-serif';
+  ctx.fillStyle='#bcd6f5'; ctx.font='20px sans-serif';
   overButtons=[];
   drawMenuBtn(overButtons,'back','🏠 回到标题',W/2-140,H/2+128,280,52,false);
 }
@@ -1267,7 +1292,7 @@ function drawPause(){
   ctx.fillStyle='#cfe'; ctx.fillText('音量：'+(Math.round(Sound.volume*100))+'%   （← / → 或 A / D 调节）',W/2,240);
   ctx.fillText('背景音乐：'+(Sound.musicOn?'开 🎵':'关 🔇')+'   （按 M 切换）',W/2,282);
   ctx.fillText('AI 难度：'+({easy:'简单',normal:'普通',hard:'困难'}[aiLevel])+'   （按 B 切换）',W/2,324);
-  ctx.fillStyle='#9fb3c8'; ctx.font='16px sans-serif';
+  ctx.fillStyle='#bcd6f5'; ctx.font='16px sans-serif';
   if(isMobile()) ctx.fillText('点按钮操作（也可直接点空白处继续）',W/2,372);
   else ctx.fillText('点按钮操作（也可 Esc / 空格 继续 ·  M 音乐 ·  B 难度 ·  ←→ 音量）',W/2,372);
   pauseButtons=[];
