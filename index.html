@@ -38,9 +38,10 @@ let state = 'splash';          // splash | device | title | playing | over | pau
 let mode = 'pvp';              // pvp | pve | boss | time
 let selMap = 'ruins';
 let playerTeam = 'blue';      // 人机模式下玩家所选队伍（pvp 时双方皆人）
+let playerSkin = 'sheep';     // 角色造型：normal 普通 / sheep 小绵羊帽 / shades 墨镜
 let map = null;
 let players = [];
-let bullets = [], grenades = [], bombs = [], bombPickups = [], zones = [], fx = [], pickups = [], particles = [], items = [], boxes = [];
+let bullets = [], grenades = [], bombs = [], bombPickups = [], zones = [], fx = [], pickups = [], particles = [], items = [], boxes = [], dmgTexts = [];
 let pets = [], portals = [];   // 小狗助手 / 传送门
 let timeLeft = 60;             // 限时挑战模式剩余秒数
 let announcements = [];
@@ -70,6 +71,7 @@ function isMobile(){ return deviceType==='mobile'; }
 // 更新公告（主界面 / 标题栏左侧）
 const CHANGELOG = [
   '4.21 更新：手机端双人模式两人同屏各控一方——蓝方（玩家1）虚拟按键全部移到左边、红方（玩家2）控制套在右边（摇杆+射击/手雷/切换/炸弹/上下）；其余模式只显示你这一方的按键',
+  '4.22 更新：击中反馈（被打中角色闪白+跳伤害数字）、击杀特效（彩色粒子爆发+爆裂环+💥）、角色造型皮肤「普通 / 🐑绵羊 / 🕶墨镜」可在标题选择',
   '4.20 更新：整体配色大翻新——界面背景换成鲜艳蓝紫渐变、按钮改成青蓝发光+金黄高亮、地图背景与墙体更鲜亮、第二层平台/楼梯标记更醒目、标题文字做成彩带渐变',
   '4.19 更新：地图编辑器操作按钮化——底部新增「废墟/冰雪/工厂 底图」「清空」「保存并开玩」「返回标题」按钮（手机/鼠标都能点，键盘 1/2/3·C·S·Esc 仍可用）',
   '4.18 更新：游戏「退出」改成按钮——暂停菜单新增「🚪 退出游戏」、结算页新增「🏠 回到标题」按钮（触屏也能退出，键盘 Esc/空格 仍可用）',
@@ -402,6 +404,8 @@ class Player {
     this.shieldHP=0; this.boost=0; this.invis=0;   // 道具状态
     this.score=0; this.streak=0; this.bossDmg=0; this.name='';
     this.lastHitBy=null;
+    this.hitFlash=0;                             // 受击闪白计时
+    this.skin = playerSkin;                      // 角色造型（普通/小绵羊/墨镜）
     this.floor=1;                                // 所在楼层（1层/2层）
     this.aiTimer=0; this.aiMove=null;
     this.isBoss=false;
@@ -416,10 +420,18 @@ class Player {
   hurt(dmg, byTeam){
     if(!this.alive) return;
     if(this.giant>0) dmg*=0.5; // 巨人皮糙肉厚，减伤50%
-    if(this.shieldHP>0){ const a=Math.min(this.shieldHP,dmg); this.shieldHP-=a; dmg-=a; }
+    if(this.shieldHP>0){ const a=Math.min(this.shieldHP,dmg); this.shieldHP-=a; dmg-=a; if(a>0) dmgTexts.push({x:this.x+rand(-6,6),y:this.y-this.radius-16,vy:-32,life:0.8,txt:'🛡'+Math.round(a),color:'#5ad6ff'}); }
+    if(dmg>0){
+      this.hitFlash=0.18; // 受击闪白
+      dmgTexts.push({x:this.x+rand(-6,6),y:this.y-this.radius-22,vy:-42,life:0.85,txt:Math.round(dmg),color: byTeam==='blue'?'#7afcff':'#ff9a9a'});
+    }
     this.hp-=dmg; this.lastHitBy=byTeam;
     if(this.isBoss){ const at=players.find(p=>p.team===byTeam); if(at) at.bossDmg+=dmg; }
     if(this.hp<=0){
+      // 击杀特效：彩色粒子爆发 + 爆裂环 + 💥
+      for(let i=0;i<22;i++){ const a=Math.random()*Math.PI*2; const s=rand(90,320); particles.push({x:this.x,y:this.y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rand(0.4,0.95),color:this.color}); }
+      fx.push({x:this.x,y:this.y,r:this.radius,max:this.radius+48,life:0.45,age:0,color:this.team==='blue'?'78,163,255':'255,90,90'});
+      dmgTexts.push({x:this.x,y:this.y-this.radius-30,vy:-24,life:1.1,txt:'💥',color:'#fff',big:true});
       this.alive=false; this.respawn=1.5; this.deaths++; this.streak=0;
       if(this.isBoss){ winner=(this.team==='blue'?'red':'blue'); state='over'; Sound.win(); recordMatch(); announce('👑 BOSS 被击败！','#b06bff'); return; }
       if(this.lastHitBy && this.lastHitBy!==this.team){
@@ -507,6 +519,7 @@ class Player {
     // 在二层时走下平台边缘 → 自动掉回一层
     if(this.floor===2 && playerFloor(this)===1){ this.floor=1; if(!this.isAI) announce((this.team==='blue'?'🔵蓝队':'🔴红队')+' 走下二层', this.color); }
     if(this.weapon!=='pistol' && WEAPONS[this.weapon].ammo>0 && this.ammo<=0){ this.weapon='pistol'; announce((this.team==='blue'?'🔵蓝队':'🔴红队')+' 弹尽，换回手枪', this.color); }
+    if(this.hitFlash>0) this.hitFlash-=dt; // 受击闪白计时递减
     if(this.isBoss){ this.bossAI(dt); return; }
     let mx=0,my=0;
     if(this.isAI){ this.ai(dt); }
@@ -607,6 +620,26 @@ class Player {
     ctx.beginPath(); ctx.fillStyle=this.color;
     ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill();
     ctx.lineWidth=3; ctx.strokeStyle='#fff'; ctx.stroke();
+    // 受击闪白
+    if(this.hitFlash>0){ ctx.beginPath(); ctx.fillStyle='rgba(255,255,255,'+clamp(this.hitFlash/0.18,0,0.8)+')'; ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill(); }
+    // 表情：眼睛（被击中有 hitFlash 时变 X 表示疼）
+    const eyeY=this.y-this.radius*0.12, ex=this.radius*0.36, er=this.radius*0.2;
+    if(this.hitFlash>0){
+      ctx.strokeStyle='#222'; ctx.lineWidth=Math.max(2,this.radius*0.12);
+      for(const sx of [-1,1]){ ctx.beginPath(); ctx.moveTo(this.x+sx*ex-er,eyeY-er); ctx.lineTo(this.x+sx*ex+er,eyeY+er); ctx.moveTo(this.x+sx*ex+er,eyeY-er); ctx.lineTo(this.x+sx*ex-er,eyeY+er); ctx.stroke(); }
+    } else if(this.skin!=='shades'){
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(this.x-ex,eyeY,er,0,Math.PI*2); ctx.arc(this.x+ex,eyeY,er,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#222'; ctx.beginPath(); ctx.arc(this.x-ex,eyeY,er*0.5,0,Math.PI*2); ctx.arc(this.x+ex,eyeY,er*0.5,0,Math.PI*2); ctx.fill();
+    }
+    // 造型装饰
+    if(this.skin==='sheep'){
+      ctx.fillStyle='#f3f3f3'; ctx.strokeStyle='#dcdcdc'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(this.x,this.y-this.radius+3,this.radius*0.82,Math.PI,0); ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(this.x-this.radius*0.62,this.y-this.radius-1,5,0,Math.PI*2); ctx.arc(this.x+this.radius*0.62,this.y-this.radius-1,5,0,Math.PI*2); ctx.fill();
+    } else if(this.skin==='shades'){
+      ctx.fillStyle='#1a1a1a'; ctx.fillRect(this.x-ex-8,eyeY-6,ex*2+16,10);
+      ctx.fillStyle='#444'; ctx.fillRect(this.x-ex-8,eyeY-6,4,10); ctx.fillRect(this.x+ex+4,eyeY-6,4,10);
+    }
     ctx.beginPath(); ctx.moveTo(this.x,this.y);
     ctx.lineTo(this.x+Math.cos(this.aim)*(this.radius+12), this.y+Math.sin(this.aim)*(this.radius+12));
     ctx.lineWidth=5; ctx.strokeStyle='#eee'; ctx.stroke();
@@ -625,7 +658,7 @@ class Player {
       ctx.textAlign='left';
     }
     ctx.globalAlpha=1;
-    const bw=44,bh=6,bx=this.x-bw/2,by=this.y-this.radius-14;
+    const bw=44,bh=6,bx=this.x-bw/2,by=this.y-this.radius-22;
     ctx.fillStyle='#000'; ctx.fillRect(bx-1,by-1,bw+2,bh+2);
     ctx.fillStyle='#444'; ctx.fillRect(bx,by,bw,bh);
     ctx.fillStyle=this.hp>40?'#37e36b':'#ff5555';
@@ -779,6 +812,7 @@ function update(dt){
   updatePortals();
   for(let i=fx.length-1;i>=0;i--){ fx[i].age+=dt; if(fx[i].age>=fx[i].life) fx.splice(i,1); }
   for(let i=particles.length-1;i>=0;i--){ const pt=particles[i]; pt.x+=pt.vx*dt; pt.y+=pt.vy*dt; pt.life-=dt; if(pt.life<=0) particles.splice(i,1); }
+  for(let i=dmgTexts.length-1;i>=0;i--){ const d=dmgTexts[i]; d.y+=d.vy*dt; d.vy*=0.9; d.life-=dt; if(d.life<=0) dmgTexts.splice(i,1); }
   for(let i=announcements.length-1;i>=0;i--){ announcements[i].age+=dt; if(announcements[i].age>=announcements[i].life) announcements.splice(i,1); }
   // 定时刷新
   pickupSpawnTimer-=dt; if(pickupSpawnTimer<=0){ spawnPickup(); pickupSpawnTimer=rand(6,10); }
@@ -824,7 +858,7 @@ function startGame(){
   const pa=freeSpot(20); let pb=freeSpot(20), tries=0;
   while(dist(pa.x,pa.y,pb.x,pb.y)<420 && tries<60){ pb=freeSpot(20); tries++; }
   portals=[pa,pb];
-  bullets=[];grenades=[];bombs=[];bombPickups=[];zones=[];fx=[];pickups=[];particles=[];items=[];boxes=[];announcements=[];
+  bullets=[];grenades=[];bombs=[];bombPickups=[];zones=[];fx=[];pickups=[];particles=[];items=[];boxes=[];dmgTexts=[];announcements=[];
   for(const p of players){ p.name=playerName; p.weapon='pistol'; p.ammo=0; p.grenType='burn'; p.grens={burn:0,freeze:0}; }
   for(let i=0;i<4;i++) spawnItem();
   for(let i=0;i<3;i++) spawnPickup();
@@ -911,7 +945,9 @@ function drawGameScene(){
   for(const bl of bullets) bl.draw();
   for(const p of players) p.draw();
   drawTouchControls();
-  for(const f of fx){ const t=clamp(f.age/f.life,0,1); ctx.strokeStyle='rgba(255,80,40,'+(1-t)+')'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(f.x,f.y,f.max*t,0,Math.PI*2); ctx.stroke(); }
+  for(const f of fx){ const t=clamp(f.age/f.life,0,1); const c=f.color||'255,80,40'; ctx.strokeStyle='rgba('+c+','+(1-t)+')'; ctx.lineWidth=4; ctx.beginPath(); ctx.arc(f.x,f.y,f.max*t,0,Math.PI*2); ctx.stroke(); }
+  for(const d of dmgTexts){ ctx.globalAlpha=clamp(d.life,0,1); ctx.fillStyle=d.color; ctx.font=(d.big?'bold 30px':'bold 18px')+' sans-serif'; ctx.textAlign='center'; ctx.fillText(d.txt, d.x, d.y); }
+  ctx.globalAlpha=1; ctx.textAlign='left';
   for(const pt of particles){ ctx.globalAlpha=clamp(pt.life,0,1); ctx.fillStyle=pt.color; ctx.fillRect(pt.x-2,pt.y-2,4,4); }
   ctx.globalAlpha=1;
   drawUI();
@@ -1021,6 +1057,9 @@ function handleTitleClick(p){
       else if(b.id==='edit'){ state='editor'; editorWalls=MAPS.custom?MAPS.custom.walls.slice():[]; editorDrag=null; editorDragNow=null; }
       else if(b.id==='team_blue') playerTeam='blue';
       else if(b.id==='team_red') playerTeam='red';
+      else if(b.id==='skin_normal') playerSkin='normal';
+      else if(b.id==='skin_sheep') playerSkin='sheep';
+      else if(b.id==='skin_shades') playerSkin='shades';
       else if(b.id==='start') startGame();
       return;
     }
@@ -1145,43 +1184,49 @@ function drawTitle(){
   const tg=ctx.createLinearGradient(310,0,610,0);
   tg.addColorStop(0,'#7afcff'); tg.addColorStop(0.5,'#ffd24a'); tg.addColorStop(1,'#ff7afc');
   ctx.fillStyle=tg; ctx.font='bold 58px sans-serif';
-  ctx.fillText('2D 枪战 4.21 版',460,62);
+  ctx.fillText('2D 枪战 4.22 版',460,62);
   ctx.font='16px sans-serif'; ctx.fillStyle='#cfe6ff';
   ctx.fillText('双人 / 人机 / Boss / 限时挑战 · 第二层 · 传送门 · 小狗助手 · 巨人药水 · 道具 · 音效',460,98);
   // （顶部输入框用于填写排行榜名字，已对齐到标题下方）
 
   // —— 选择模式 ——
-  ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.fillText('选择模式（点按钮或按 1 / 2 / 3 / T）',460,200);
-  drawBtn('mode_pvp','① 双人',139,218,150,44,mode==='pvp');
-  drawBtn('mode_pve','② 人机',303,218,150,44,mode==='pve');
-  drawBtn('mode_boss','③ Boss战',467,218,150,44,mode==='boss');
-  drawBtn('mode_time','④ 限时挑战',631,218,150,44,mode==='time');
+  ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.fillText('选择模式（点按钮或按 1 / 2 / 3 / T）',460,196);
+  drawBtn('mode_pvp','① 双人',139,214,150,44,mode==='pvp');
+  drawBtn('mode_pve','② 人机',303,214,150,44,mode==='pve');
+  drawBtn('mode_boss','③ Boss战',467,214,150,44,mode==='boss');
+  drawBtn('mode_time','④ 限时挑战',631,214,150,44,mode==='time');
 
   // —— 选择队伍 ——
-  ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText('选择队伍（人机模式生效）',460,298);
-  drawBtn('team_blue','🔵 蓝队',303,316,150,44,playerTeam==='blue');
-  drawBtn('team_red','🔴 红队',467,316,150,44,playerTeam==='red');
+  ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText('选择队伍（人机模式生效）',460,286);
+  drawBtn('team_blue','🔵 蓝队',303,304,150,44,playerTeam==='blue');
+  drawBtn('team_red','🔴 红队',467,304,150,44,playerTeam==='red');
+
+  // —— 选择造型 ——
+  ctx.fillStyle='#fff'; ctx.font='18px sans-serif'; ctx.fillText('选择造型（你的角色外观）',460,360);
+  drawBtn('skin_normal','😀 普通',200,376,160,44,playerSkin==='normal');
+  drawBtn('skin_sheep','🐑 绵羊',380,376,160,44,playerSkin==='sheep');
+  drawBtn('skin_shades','🕶 墨镜',560,376,160,44,playerSkin==='shades');
 
   // —— 选择地图（2×3 网格）——
-  ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.fillText('选择地图（点按钮或按 7 / 8 / 9 / 4 / 5）',460,386);
-  drawBtn('map_ruins','7 废墟城市',69,404,250,44,selMap==='ruins');
-  drawBtn('map_ice','8 冰雪荒原',335,404,250,44,selMap==='ice');
-  drawBtn('map_factory','9 废弃工厂',601,404,250,44,selMap==='factory');
-  drawBtn('map_jungle','4 丛林战场',69,456,250,44,selMap==='jungle');
-  drawBtn('map_space','5 太空站',335,456,250,44,selMap==='space');
-  drawBtn('map_house','6 双层小楼',601,456,250,44,selMap==='house');
+  ctx.fillStyle='#fff'; ctx.font='20px sans-serif'; ctx.fillText('选择地图（点按钮或按 7 / 8 / 9 / 4 / 5）',460,436);
+  drawBtn('map_ruins','7 废墟城市',69,452,250,44,selMap==='ruins');
+  drawBtn('map_ice','8 冰雪荒原',335,452,250,44,selMap==='ice');
+  drawBtn('map_factory','9 废弃工厂',601,452,250,44,selMap==='factory');
+  drawBtn('map_jungle','4 丛林战场',69,504,250,44,selMap==='jungle');
+  drawBtn('map_space','5 太空站',335,504,250,44,selMap==='space');
+  drawBtn('map_house','6 双层小楼',601,504,250,44,selMap==='house');
 
   // —— 我的地图 / 编辑地图 ——
-  if(MAPS.custom) drawBtn('map_custom','0 我的地图',202,508,250,44,selMap==='custom');
-  drawBtn('edit','✏ 编辑地图', MAPS.custom?468:335, 508, 250, 44, false);
+  if(MAPS.custom) drawBtn('map_custom','0 我的地图',202,558,250,44,selMap==='custom');
+  drawBtn('edit','✏ 编辑地图', MAPS.custom?468:335, 558, 250, 44, false);
 
   // —— 开始游戏 ——
-  drawBtn('start','▶ 开始游戏（空格）',310,570,300,54,false);
+  drawBtn('start','▶ 开始游戏（空格）',310,612,300,54,false);
 
   // 底部操作提示
   ctx.fillStyle='#bcd6f5'; ctx.font='13px sans-serif';
-  ctx.fillText('🏠 第二层：走到平台/楼梯旁，蓝队按 F、红队按 /（触屏点「上下」）上楼；走下平台边缘掉回1层；不同层打不到对方',460,646);
-  ctx.fillText('🎁 奖励箱碰到即开得 3~5 手榴弹 ｜ 游戏中按 Esc 暂停、空格回标题、AI 难度在暂停里调',460,670);
+  ctx.fillText('🏠 第二层：走到平台/楼梯旁，蓝队按 F、红队按 /（触屏点「上下」）上楼；走下平台边缘掉回1层；不同层打不到对方',460,678);
+  ctx.fillText('🎁 奖励箱碰到即开得 3~5 手榴弹 ｜ 游戏中按 Esc 暂停、空格回标题、AI 难度在暂停里调',460,702);
 
   drawLeaderboard();
   drawChangelog();
